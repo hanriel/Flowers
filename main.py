@@ -1,11 +1,11 @@
 import os
-
-import cntk
-import numpy as np
 from cntk.io import *
 from cntk.io.transforms import *
 from cntk.layers import *
 from cntk.ops import *
+from pylab import *
+from PIL import Image
+
 
 source_dir = r'd:\Flowers'
 train_file = os.path.join(source_dir, 'flower_labels.csv')
@@ -13,8 +13,6 @@ test_file = os.path.join(source_dir, 'tst.txt')
 
 test_epoch_size = 5000
 train_epoch_size = 20000
-
-#cntk.set_default_device(cntk.device.gpu(0))
 
 # Задаём разрешение модели
 image_height = 64
@@ -36,6 +34,7 @@ def create_reader(map_file, train):
 reader_train = create_reader(train_file, True)
 reader_test = create_reader(test_file, False)
 
+# Создание и описание модели обучения
 model = Sequential([
     For(range(3), lambda i: [
         Convolution((5, 5), [32, 32, 64][i], init=glorot_uniform(), pad=True, activation=relu),
@@ -97,35 +96,36 @@ def test_eval():
 
 
 max_epochs = 30
-progress_printer = cntk.logging.ProgressPrinter(tag='Training',num_epochs=max_epochs)
+progress_printer = cntk.logging.ProgressPrinter(tag='Training', num_epochs=max_epochs)
 for epoch in range(max_epochs):
     sample_count = 0
-    n=0
+    n = 0
     while sample_count < train_epoch_size:
-        data = reader_train.next_minibatch(min(minibatch_size, train_epoch_size - sample_count), input_map=input_map) # fetch minibatch.
+        data = reader_train.next_minibatch(min(minibatch_size, train_epoch_size - sample_count),
+                                           input_map=input_map)  # fetch minibatch.
         t = trainer.train_minibatch(data)
         sample_count += data[label_var].num_samples
-        progress_printer.update_with_trainer(trainer, with_metric=True) # log progress
-        n+=1
+        progress_printer.update_with_trainer(trainer, with_metric=True)  # log progress
+        n += 1
 
     progress_printer.epoch_summary(with_metric=True)
     print("Evaluation result: {:0.1f}".format(test_eval()))
     trained_model = cntk.softmax(z)
-    #trained_model.save_model('c:\\Learn\\Models\\CatDog_' + str(epoch))
+    # trained_model.save_model('c:\\Learn\\Models\\CatDog_' + str(epoch))
 
-trained_model.save_model(os.path.join(source_dir,'Model'))
-
-from PIL import Image
+trained_model.save_model(os.path.join(source_dir, 'Model'))
 
 def evaluate(image_path):
-    image_data   = np.array(Image.open(image_path).resize((image_width,image_height)), dtype=np.float32)
-    image_data   = np.ascontiguousarray(np.transpose(image_data, (2, 0, 1)))
-    return np.squeeze(trained_model.eval({trained_model.arguments[0]:[image_data]}))
+    image_data = np.array(Image.open(image_path).resize((image_width, image_height)), dtype=np.float32)
+    image_data = np.ascontiguousarray(np.transpose(image_data, (2, 0, 1)))
+    return np.squeeze(trained_model.eval({trained_model.arguments[0]: [image_data]}))
+
 
 import IPython
 
+
 def show(image_path):
-    IPython.display.display(IPython.display.Image(open(image_path,'rb').read(),format='jpg'))
+    IPython.display.display(IPython.display.Image(open(image_path, 'rb').read(), format='jpg'))
     print(evaluate(image_path))
 
 
@@ -133,12 +133,14 @@ def eval_best_cat(image_path):
     result = evaluate(image_path)
     return (-np.array(result)).argsort()[0]
 
-correct = 0; total=0
-with open(os.path.join(source_dir,'Test.txt')) as f:
+
+correct = 0;
+total = 0
+with open(os.path.join(source_dir, 'Test.txt')) as f:
     for x in f:
         cat = int(x.split()[1])
         res = eval_best_cat(x.split()[0])
-        if (cat==res): correct+=1
-        total+=1
+        if (cat == res): correct += 1
+        total += 1
 
-print ("Correct: {} of {}".format(correct,total))
+print("Correct: {} of {}".format(correct, total))
